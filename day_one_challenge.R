@@ -18,8 +18,6 @@ inc_count
 # even simpler answer -- in a single line of code!
 sum(diff(sonar_scans) > 0)
 
-three_meas_window_count <- 0
-
 ##-- Part two: find the number of increases for the sliding 3 measurement window
 sum(diff(rowSums(embed(sonar_scans, 3))) > 0)
 
