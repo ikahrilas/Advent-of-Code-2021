@@ -13,3 +13,6 @@ for(i in 1:length(sonar_scans) - 1) {
 
 # check out the final count
 inc_count
+
+# even simpler answer -- in a single line of code!
+sum(diff(sonar_scans) > 0)
