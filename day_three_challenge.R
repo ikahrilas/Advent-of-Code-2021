@@ -1,64 +1,78 @@
-##-- part one
-# use stringr and tidyverse packages
-library(stringr)
 library(tidyverse)
 
-# read in the data
-dat <- readLines("day_three_dat.txt") |>
-  str_split(patter = "", simplify = TRUE) |>
-  as.data.frame() |>
-  mutate(across(.cols = everything(), .fns = ~ as.numeric(.x)))
+input_03 <- read_lines("day_three_dat.txt") %>%
+  enframe(name = NULL) %>%
+  separate(value, into = as.character(1:12), sep = "(?<=.)")
 
-# define mode function
-Mode <- function(x, max_or_min = "max"){
-  if(max_or_min == "max") {
-  names(which.max(table(x)))
-  } else if(max_or_min == "min") {
-    names(which.min(table(x)))
-  } else {
-    stop("'max_or_min' must be 'max' or 'min'")
-  }
-  }
-
-# find gamma and epsilon rates
-modes <- map_chr(dat, ~ Mode(.x)) |> paste0(collapse = "")
-
-gamma_rate <- strtoi(modes, base = 2)
-
-inv_modes <- map_chr(dat, ~ Mode(.x, "min")) |> paste0(collapse = "")
-
-epsilon_rate <- strtoi(inv_modes, base = 2)
-
-# derive answer
-gamma_rate * epsilon_rate
-
-##-- part two
-# derive oxygen generator rating
-o2_gen_rating <- dat
-
-for(j in 1:ncol(o2_gen_rating)) {
-  o2_gen_rating <- o2_gen_rating[o2_gen_rating[j] == Mode(o2_gen_rating[j]),]
+bin_to_int <- function(bin) {
+  bits <- bin %>%
+    str_split("") %>%
+    pluck(1) %>%
+    as.integer()
+  powers <- rev(seq_along(bits)) - 1
+  as.integer(sum(bits * 2^powers))
 }
 
-o2_gen_rating <- o2_gen_rating |> paste0(collapse = "") |> strtoi(base = 2)
+bin_to_int("101010") # 42
 
-# derive CO2 scrubber rating
-co2_gen_rating <- dat
-co2_gen_rating["keep"] <- TRUE
+most_least_common <- function(x) {
+  counts <- table(x)
+  names(counts)[c(which.max(counts), which.min(counts))]
+}
 
-for(j in 1:ncol(co2_gen_rating)) {
-  for(i in 1:nrow(co2_gen_rating)){
-    if(co2_gen_rating[i, j] != Mode(co2_gen_rating[j])){
-      co2_gen_rating[i, "keep"] <- FALSE
-    } else {
-      NULL
+most_least_common(c("1", "0", "1", "0", "0")) # c("0", "1")
+most_least_common(c("1", "0", "1", "0")) # c("0", "0")
+
+q3a <- function(input) {
+  rates <- input %>%
+    map(most_least_common) %>%
+    transpose(.names = c("gamma", "epsilon")) %>%
+    map(~ str_c(.x, collapse = "") %>% bin_to_int)
+  prod(as.integer(rates))
+}
+
+q3a(input_03)
+
+support_rating <- function(input, bit_num, support = c("o2", "co2")) {
+  index_to_keep <- function(bit_vals, support) {
+    mlcv <- most_least_common(bit_vals)
+    if (support == "o2") {
+      if (mlcv[1] == mlcv[2]) {
+        keep_digit <- "1"
+      } else {
+        keep_digit <- mlcv[1]
+      }
+    } else if (support == "co2") {
+      if (mlcv[1] == mlcv[2]) {
+        keep_digit <- "0"
+      } else {
+        keep_digit <- mlcv[2]
+      }
     }
+    bit_vals == keep_digit
   }
+
+  bit_vals <- input[[bit_num]]
+  out <- filter(input, index_to_keep(bit_vals, support))
+
+  if (nrow(out) == 1) {
+    out <- out %>%
+      str_c(collapse = "") %>%
+      bin_to_int()
+    done(out) # exit reduce if we are finished
+  } else {
+    out
+  }
+
+}
+support_rating(test_3, 1,  "o2")
+support_rating(test_3, 1, "co2")
+reduce(1:5, support_rating, support = "o2", .init = test_3)
+
+q3b <- function(input) {
+  o2_rating <- reduce(seq_along(input), support_rating, support = "o2", .init = input)
+  co2_rating <- reduce(seq_along(input), support_rating, support = "co2", .init = input)
+  o2_rating * co2_rating
 }
 
-co2_gen_rating["keep"] |> table()
-
-co2_gen_rating <- co2_gen_rating |> paste0(collapse = "") |> strtoi(base = 2)
-
-# derive answer
-o2_gen_rating * co2_gen_rating
+q3b(input_03)
